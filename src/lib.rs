@@ -1,7 +1,7 @@
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use std::error::Error;
-use std::cmp;
+use std::{cmp, fmt};
 
 pub enum Move {
     Kick,
@@ -20,8 +20,23 @@ impl Distribution<Move> for Standard {
             2 => Move::Sweep,
             3 => Move::Crouch,
             4 => Move::Block,
-            _ => Move::Jump
+            _ => Move::Jump,
         }
+    }
+}
+
+impl fmt::Display for Move {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let label = match *self {
+            Move::Kick => "Kick",
+            Move::Punch => "Punch",
+            Move::Sweep => "Sweep",
+            Move::Crouch => "Crouch",
+            Move::Block => "Block",
+            Move::Jump => "Jump",
+        };
+
+        write!(f, "{}", label)
     }
 }
 
@@ -65,7 +80,7 @@ impl Round {
     }
 }
 
-pub fn turn(left: Move, right: Move) -> (i32, i32) {
+pub fn turn(left: &Move, right: &Move) -> (i32, i32) {
     match left {
         Move::Kick => match right {
             Move::Kick => Outcome::Trade,
@@ -130,7 +145,7 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         let p2_move = rand::random::<Move>();
 
         // Play turn.
-        let turn = turn(p1_move, p2_move);
+        let turn = turn(&p1_move, &p2_move);
 
         // Apply turn to bars.
         round.bars.0 = cmp::max(0, cmp::min(10, round.bars.0 + turn.0));
@@ -155,7 +170,15 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             index += 1;
         }
 
-        print!(" P2\n");
+        println!(" P2 <- {} VS {}", &p1_move, &p2_move);
+    }
+
+    if round.bars.0 > round.bars.1 {
+        println!("You win!")
+    } else if round.bars.0 < round.bars.1 {
+        println!("You lose!");
+    } else {
+        println!("Double KO!");
     }
 
     Ok(())
