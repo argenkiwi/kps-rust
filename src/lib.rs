@@ -1,3 +1,6 @@
+extern crate pancurses;
+
+use pancurses::{endwin, initscr, Input};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use std::error::Error;
@@ -137,13 +140,27 @@ pub fn turn(left: &Move, right: &Move) -> (i32, i32) {
 pub fn run() -> Result<(), Box<dyn Error>> {
     let mut round = Round::new();
 
-    println!("Fight!");
+    let window = initscr();
+
+    window.printw("Fight!\n");
+    window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
 
     while !round.is_finished() {
-        // TODO Make moves random.
-        let p1_move = rand::random::<Move>();
-        let p2_move = rand::random::<Move>();
+        
+        let p1_move = match window.getch() {
+            Some(Input::Character('k')) => Move::Kick,
+            Some(Input::Character('p')) => Move::Punch,
+            Some(Input::Character('s')) => Move::Sweep,
+            Some(Input::Character('c')) => Move::Crouch,
+            Some(Input::Character('b')) => Move::Block,
+            Some(Input::Character('j')) => Move::Jump,
+            _ => continue,
+        };
 
+        window.clear();
+
+        let p2_move = rand::random::<Move>();
+ 
         // Play turn.
         let turn = turn(&p1_move, &p2_move);
 
@@ -152,34 +169,39 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         round.bars.1 = cmp::max(0, cmp::min(10, round.bars.1 + turn.1));
 
         // Display bars.
-        print!("P1 ");
+        window.printw("P1 ");
 
         let mut index = 0;
         while index < 10 {
             let ch = if index < 10 - round.bars.0 { '-' } else { '#' };
-            print!("{}", ch);
+            window.printw(format!("{}", ch));
             index += 1;
         }
 
-        print!(" VS ");
+        window.printw(" VS ");
 
         let mut index = 0;
         while index < 10 {
             let ch = if index < round.bars.1 { '#' } else { '-' };
-            print!("{}", ch);
+            window.printw(format!("{}", ch));
             index += 1;
         }
 
-        println!(" P2 <- {} VS {}", &p1_move, &p2_move);
+        window.printw(format!(" P2 <- {} VS {}\n", &p1_move, &p2_move));
+        window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
     }
 
     if round.bars.0 > round.bars.1 {
-        println!("You win!")
+        window.printw("You win!\n");
     } else if round.bars.0 < round.bars.1 {
-        println!("You lose!");
+        window.printw("You lose!\n");
     } else {
-        println!("Double KO!");
+        window.printw("Double KO!\n");
     }
+
+    window.getch();
+
+    endwin();
 
     Ok(())
 }
