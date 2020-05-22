@@ -164,14 +164,12 @@ pub fn run() -> Result<(), Box<dyn Error>> {
 
     let window = initscr();
 
+
+    render_bars(&window, &round);
     window.printw("Fight!\n");
+    window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
 
     while !round.is_finished() {
-
-        // Display bars.
-        render_bars(&window, &round);
-
-        window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
 
         // Capture input
         let p1_move = match window.getch() {
@@ -181,17 +179,12 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             Some(Input::Character('c')) => Move::Crouch,
             Some(Input::Character('b')) => Move::Block,
             Some(Input::Character('j')) => Move::Jump,
-            _ => {
-                window.clear();
-                continue
-            },
+            _ => continue,
         };
 
         let p2_move = rand::random::<Move>();
 
         window.clear();
-
-        window.printw(format!("{} - {}\n", &p1_move, &p2_move));
 
         // Play turn.
         let turn = turn(&p1_move, &p2_move);
@@ -199,9 +192,12 @@ pub fn run() -> Result<(), Box<dyn Error>> {
         // Apply turn to bars.
         round.bars.0 = cmp::max(0, cmp::min(10, round.bars.0 + turn.0));
         round.bars.1 = cmp::max(0, cmp::min(10, round.bars.1 + turn.1));
+        
+        // Render.
+        render_bars(&window, &round);
+        window.printw(format!("{} - {}\n", &p1_move, &p2_move));
+        window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
     }
-
-    render_bars(&window, &round);
 
     if round.bars.0 > round.bars.1 {
         window.printw("You win!");
