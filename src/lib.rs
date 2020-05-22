@@ -1,6 +1,6 @@
 extern crate pancurses;
 
-use pancurses::{endwin, initscr, Input};
+use pancurses::{endwin, initscr, Input, Window};
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
 use std::error::Error;
@@ -137,16 +137,43 @@ pub fn turn(left: &Move, right: &Move) -> (i32, i32) {
     .value()
 }
 
+fn render_bars(window: &Window, round: &Round) {
+    window.printw("YOU ");
+
+    let mut index = 0;
+    while index < 10 {
+        let ch = if index < 10 - round.bars.0 { '-' } else { '#' };
+        window.printw(format!("{}", ch));
+        index += 1;
+    }
+
+    window.printw(" VS ");
+
+    let mut index = 0;
+    while index < 10 {
+        let ch = if index < round.bars.1 { '#' } else { '-' };
+        window.printw(format!("{}", ch));
+        index += 1;
+    }
+
+    window.printw(" CPU\n");
+}
+
 pub fn run() -> Result<(), Box<dyn Error>> {
     let mut round = Round::new();
 
     let window = initscr();
 
     window.printw("Fight!\n");
-    window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
 
     while !round.is_finished() {
-        
+
+        // Display bars.
+        render_bars(&window, &round);
+
+        window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
+
+        // Capture input
         let p1_move = match window.getch() {
             Some(Input::Character('k')) => Move::Kick,
             Some(Input::Character('p')) => Move::Punch,
@@ -154,51 +181,37 @@ pub fn run() -> Result<(), Box<dyn Error>> {
             Some(Input::Character('c')) => Move::Crouch,
             Some(Input::Character('b')) => Move::Block,
             Some(Input::Character('j')) => Move::Jump,
-            _ => continue,
+            _ => {
+                window.clear();
+                continue
+            },
         };
+
+        let p2_move = rand::random::<Move>();
 
         window.clear();
 
-        let p2_move = rand::random::<Move>();
- 
+        window.printw(format!("{} - {}\n", &p1_move, &p2_move));
+
         // Play turn.
         let turn = turn(&p1_move, &p2_move);
 
         // Apply turn to bars.
         round.bars.0 = cmp::max(0, cmp::min(10, round.bars.0 + turn.0));
         round.bars.1 = cmp::max(0, cmp::min(10, round.bars.1 + turn.1));
-
-        // Display bars.
-        window.printw("P1 ");
-
-        let mut index = 0;
-        while index < 10 {
-            let ch = if index < 10 - round.bars.0 { '-' } else { '#' };
-            window.printw(format!("{}", ch));
-            index += 1;
-        }
-
-        window.printw(" VS ");
-
-        let mut index = 0;
-        while index < 10 {
-            let ch = if index < round.bars.1 { '#' } else { '-' };
-            window.printw(format!("{}", ch));
-            index += 1;
-        }
-
-        window.printw(format!(" P2 <- {} VS {}\n", &p1_move, &p2_move));
-        window.printw("Press (k)ick, (p)unch, (s)weep, (c)rouch, (b)lock or (j)ump.\n");
     }
+
+    render_bars(&window, &round);
 
     if round.bars.0 > round.bars.1 {
-        window.printw("You win!\n");
+        window.printw("You win!");
     } else if round.bars.0 < round.bars.1 {
-        window.printw("You lose!\n");
+        window.printw("You lose!");
     } else {
-        window.printw("Double KO!\n");
+        window.printw("Double KO!");
     }
 
+    window.printw(" Press any key to exit.\n");
     window.getch();
 
     endwin();
@@ -212,61 +225,61 @@ mod tests {
 
     #[test]
     fn kick() {
-        assert_eq!((-1, -1), turn(Move::Kick, Move::Kick));
-        assert_eq!((0, -2), turn(Move::Kick, Move::Punch));
-        assert_eq!((-2, 0), turn(Move::Kick, Move::Sweep));
-        assert_eq!((0, 1), turn(Move::Kick, Move::Crouch));
-        assert_eq!((0, 0), turn(Move::Kick, Move::Block));
-        assert_eq!((0, -1), turn(Move::Kick, Move::Jump));
+        assert_eq!((-1, -1), turn(&Move::Kick, &Move::Kick));
+        assert_eq!((0, -2), turn(&Move::Kick, &Move::Punch));
+        assert_eq!((-2, 0), turn(&Move::Kick, &Move::Sweep));
+        assert_eq!((0, 1), turn(&Move::Kick, &Move::Crouch));
+        assert_eq!((0, 0), turn(&Move::Kick, &Move::Block));
+        assert_eq!((0, -1), turn(&Move::Kick, &Move::Jump));
     }
 
     #[test]
     fn punch() {
-        assert_eq!((-2, 0), turn(Move::Punch, Move::Kick));
-        assert_eq!((-1, -1), turn(Move::Punch, Move::Punch));
-        assert_eq!((0, -2), turn(Move::Punch, Move::Sweep));
-        assert_eq!((0, -1), turn(Move::Punch, Move::Crouch));
-        assert_eq!((0, 1), turn(Move::Punch, Move::Block));
-        assert_eq!((0, 0), turn(Move::Punch, Move::Jump));
+        assert_eq!((-2, 0), turn(&Move::Punch, &Move::Kick));
+        assert_eq!((-1, -1), turn(&Move::Punch, &Move::Punch));
+        assert_eq!((0, -2), turn(&Move::Punch, &Move::Sweep));
+        assert_eq!((0, -1), turn(&Move::Punch, &Move::Crouch));
+        assert_eq!((0, 1), turn(&Move::Punch, &Move::Block));
+        assert_eq!((0, 0), turn(&Move::Punch, &Move::Jump));
     }
 
     #[test]
     fn sweep() {
-        assert_eq!((0, -2), turn(Move::Sweep, Move::Kick));
-        assert_eq!((-2, 0), turn(Move::Sweep, Move::Punch));
-        assert_eq!((-1, -1), turn(Move::Sweep, Move::Sweep));
-        assert_eq!((0, 0), turn(Move::Sweep, Move::Crouch));
-        assert_eq!((0, -1), turn(Move::Sweep, Move::Block));
-        assert_eq!((0, 1), turn(Move::Sweep, Move::Jump));
+        assert_eq!((0, -2), turn(&Move::Sweep, &Move::Kick));
+        assert_eq!((-2, 0), turn(&Move::Sweep, &Move::Punch));
+        assert_eq!((-1, -1), turn(&Move::Sweep, &Move::Sweep));
+        assert_eq!((0, 0), turn(&Move::Sweep, &Move::Crouch));
+        assert_eq!((0, -1), turn(&Move::Sweep, &Move::Block));
+        assert_eq!((0, 1), turn(&Move::Sweep, &Move::Jump));
     }
 
     #[test]
     fn crouch() {
-        assert_eq!((1, 0), turn(Move::Crouch, Move::Kick));
-        assert_eq!((-1, 0), turn(Move::Crouch, Move::Punch));
-        assert_eq!((0, 0), turn(Move::Crouch, Move::Sweep));
-        assert_eq!((0, 0), turn(Move::Crouch, Move::Crouch));
-        assert_eq!((0, 0), turn(Move::Crouch, Move::Block));
-        assert_eq!((0, 0), turn(Move::Crouch, Move::Jump));
+        assert_eq!((1, 0), turn(&Move::Crouch, &Move::Kick));
+        assert_eq!((-1, 0), turn(&Move::Crouch, &Move::Punch));
+        assert_eq!((0, 0), turn(&Move::Crouch, &Move::Sweep));
+        assert_eq!((0, 0), turn(&Move::Crouch, &Move::Crouch));
+        assert_eq!((0, 0), turn(&Move::Crouch, &Move::Block));
+        assert_eq!((0, 0), turn(&Move::Crouch, &Move::Jump));
     }
 
     #[test]
     fn block() {
-        assert_eq!((0, 0), turn(Move::Block, Move::Kick));
-        assert_eq!((1, 0), turn(Move::Block, Move::Punch));
-        assert_eq!((-1, 0), turn(Move::Block, Move::Sweep));
-        assert_eq!((0, 0), turn(Move::Block, Move::Crouch));
-        assert_eq!((0, 0), turn(Move::Block, Move::Block));
-        assert_eq!((0, 0), turn(Move::Block, Move::Jump));
+        assert_eq!((0, 0), turn(&Move::Block, &Move::Kick));
+        assert_eq!((1, 0), turn(&Move::Block, &Move::Punch));
+        assert_eq!((-1, 0), turn(&Move::Block, &Move::Sweep));
+        assert_eq!((0, 0), turn(&Move::Block, &Move::Crouch));
+        assert_eq!((0, 0), turn(&Move::Block, &Move::Block));
+        assert_eq!((0, 0), turn(&Move::Block, &Move::Jump));
     }
 
     #[test]
     fn jump() {
-        assert_eq!((-1, 0), turn(Move::Jump, Move::Kick));
-        assert_eq!((0, 0), turn(Move::Jump, Move::Punch));
-        assert_eq!((1, 0), turn(Move::Jump, Move::Sweep));
-        assert_eq!((0, 0), turn(Move::Jump, Move::Crouch));
-        assert_eq!((0, 0), turn(Move::Jump, Move::Block));
-        assert_eq!((0, 0), turn(Move::Jump, Move::Jump));
+        assert_eq!((-1, 0), turn(&Move::Jump, &Move::Kick));
+        assert_eq!((0, 0), turn(&Move::Jump, &Move::Punch));
+        assert_eq!((1, 0), turn(&Move::Jump, &Move::Sweep));
+        assert_eq!((0, 0), turn(&Move::Jump, &Move::Crouch));
+        assert_eq!((0, 0), turn(&Move::Jump, &Move::Block));
+        assert_eq!((0, 0), turn(&Move::Jump, &Move::Jump));
     }
 }
